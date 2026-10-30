@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07111f">
+<link rel="manifest" href="manifest.json">
+<title>EDITH AI</title>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--panel:#102239;--cyan:#50e6ff;--text:#f3f8ff;--muted:#a8bdcf}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#14334b,var(--bg) 52%);color:var(--text);font:16px system-ui,sans-serif;min-height:100vh}
+main{max-width:720px;margin:auto;padding:20px 16px 28px;display:flex;flex-direction:column;min-height:100vh}
+header{text-align:center;padding:14px 0 18px}h1{letter-spacing:.18em;color:var(--cyan);font-size:28px;margin:4px}header p{color:var(--muted);margin:5px;font-size:12px;letter-spacing:.12em}
+.status{color:var(--cyan);text-align:center;font-size:12px;margin-bottom:12px}
+#chat{flex:1;min-height:220px;max-height:55vh;overflow:auto;background:#0b1b2d;border:1px solid #23445b;border-radius:18px;padding:14px}
+.msg{white-space:pre-wrap;line-height:1.45;margin:0 0 14px}.who{font-size:12px;color:var(--cyan);font-weight:700;margin-bottom:3px}
+form{display:flex;gap:8px;margin-top:12px}input{min-width:0;flex:1;background:#132940;color:white;border:1px solid #31536b;border-radius:12px;padding:14px;font-size:16px}
+button{border:0;border-radius:12px;padding:12px 14px;font-weight:700;color:#04131d;background:var(--cyan);cursor:pointer}button.secondary{background:#17364d;color:#e9f8ff;border:1px solid #31536b}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}.controls button{min-height:46px}
+small,.note{color:var(--muted);font-size:12px;line-height:1.5}.note{padding:12px 2px}
+details{margin-top:12px;background:#0b1b2d;border:1px solid #23445b;border-radius:12px;padding:12px}summary{color:var(--cyan);cursor:pointer;font-weight:700}details input{width:100%;margin-top:10px}
+@media(min-width:600px){main{padding-top:32px}}
+</style>
+</head>
+<body><main>
+<header><h1>EDITH AI</h1><p>VOICE ASSISTANT • ONLINE CHAT</p></header>
+<div class="status" id="status">READY • माइक्रोफोन दबाकर बोलें</div>
+<section id="chat" aria-live="polite"></section>
+<form id="form"><input id="message" autocomplete="off" placeholder="अपना सवाल लिखें..." aria-label="अपना सवाल लिखें"><button type="submit">भेजें</button></form>
+<div class="controls">
+<button id="mic">🎙 बोलकर पूछें</button><button class="secondary" id="stop">■ आवाज़ बंद</button>
+<button class="secondary" id="time">🕒 समय बताओ</button><button class="secondary" id="date">📅 तारीख बताओ</button>
+<button class="secondary" id="youtube">▶ YouTube खोलो</button><button class="secondary" id="google">⌕ Google खोलो</button>
+</div>
+<details><summary>AI Backend सेटिंग</summary>
+<p class="note">AI चैट के लिए अपने HTTPS backend का URL डालें। API key यहाँ न डालें।</p>
+<input id="backend" placeholder="https://your-server.example/chat" inputmode="url">
+<button id="save" style="margin-top:8px;width:100%">Backend URL सेव करें</button>
+</details>
+<p class="note">माइक्रोफोन फीचर ब्राउज़र सपोर्ट पर निर्भर है। AI चैट के लिए backend जरूरी है। यह वेब ऐप है, APK नहीं।</p>
+</main>
+<script>
+const $=id=>document.getElementById(id), chat=$('chat'), status=$('status');
+function add(who,text){const d=document.createElement('div');d.className='msg';const w=document.createElement('div');w.className='who';w.textContent=who;const t=document.createElement('div');t.textContent=text;d.append(w,t);chat.append(d);chat.scrollTop=chat.scrollHeight}
+function say(text){add('EDITH',text);status.textContent='READY';if('speechSynthesis'in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='hi-IN';speechSynthesis.speak(u)}}
+function local(q){const s=q.toLowerCase();if(s.includes('समय')||s.includes('time')||s.includes('कितने बजे')){say('अभी समय है '+new Intl.DateTimeFormat('hi-IN',{hour:'numeric',minute:'2-digit'}).format(new Date()));return true}
+if(s.includes('तारीख')||s.includes('date')){say('आज की तारीख '+new Intl.DateTimeFormat('hi-IN',{dateStyle:'full'}).format(new Date()));return true}
+if(s.includes('यूट्यूब खोलो')||s.includes('open youtube')){window.open('https://www.youtube.com','_blank','noopener');say('YouTube खोल रहा हूँ।');return true}
+if(s.includes('गूगल खोलो')||s.includes('open google')){window.open('https://www.google.com','_blank','noopener');say('Google खोल रहा हूँ।');return true}
+if(['stop','रुको','बंद करो','आवाज़ बंद करो'].includes(s.trim())){speechSynthesis?.cancel();status.textContent='VOICE STOPPED';return true}return false}
+async function ask(q){add('YOU',q);if(local(q))return;const url=$('backend').value.trim()||localStorage.getItem('edithBackend')||'';if(!url){say('AI चैट चालू करने के लिए Backend सेटिंग में HTTPS URL डालें। समय, तारीख और ऐप लिंक वाले commands अभी काम करते हैं।');return}
+status.textContent='AI THINKING…';try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})});if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json();say(data.reply||'जवाब नहीं मिला।')}catch(e){say('AI सर्वर से कनेक्शन नहीं हुआ। Backend URL और इंटरनेट जाँचें।')}}
+$('form').addEventListener('submit',e=>{e.preventDefault();const q=$('message').value.trim();if(q){$('message').value='';ask(q)}});
+$('time').onclick=()=>ask('समय बताओ');$('date').onclick=()=>ask('आज की तारीख बताओ');$('youtube').onclick=()=>ask('यूट्यूब खोलो');$('google').onclick=()=>ask('गूगल खोलो');$('stop').onclick=()=>{if('speechSynthesis'in window)speechSynthesis.cancel();status.textContent='VOICE STOPPED'};
+$('save').onclick=()=>{const u=$('backend').value.trim();if(u&&!u.startsWith('https://')){alert('सुरक्षा के लिए HTTPS URL इस्तेमाल करें।');return}localStorage.setItem('edithBackend',u);$('backend').value=u;alert('Backend URL सेव हो गया।')};
+const saved=localStorage.getItem('edithBackend');if(saved)$('backend').value=saved;
+$('mic').onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){say('इस ब्राउज़र में speech recognition उपलब्ध नहीं है। Chrome में कोशिश करें या सवाल टाइप करें।');return}
+const rec=new SR();rec.lang='hi-IN';rec.interimResults=false;rec.maxAlternatives=1;rec.onstart=()=>status.textContent='LISTENING…';rec.onerror=()=>status.textContent='VOICE ERROR • फिर कोशिश करें';rec.onresult=e=>{const q=e.results[0][0].transcript;$('message').value=q;ask(q)};rec.onend=()=>{if(status.textContent==='LISTENING…')status.textContent='READY'};rec.start()};
+if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+add('EDITH','नमस्ते! मैं EDITH AI हूँ। सवाल लिखें या माइक्रोफोन दबाएँ।');
+</script></body></html>
